@@ -1,2 +1,13 @@
 ACCESS_TOKEN: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+REPOS:
+  - ioos/compliance-checker
+  - ioos/catalog
+  - ioos/pyoos
+  - ioos/wicken
+  - ioos/petulant-bear
+  - ioos/metamap
+  - asascience-open/sci-wms
+  - asascience-open/ncsos
+  - asascience-open/paegan
+  - nctoolbox/nctoolbox
 
