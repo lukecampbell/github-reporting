@@ -1,0 +1,337 @@
+#!/usr/bin/env python
+'''
+monthly_report.py
+
+A utility script to generate statistics about the github activity for certain
+repositories
+'''
+
+from requests.auth import HTTPBasicAuth
+from dateutil.parser import parse as dateparse
+
+import requests
+import pytz
+import csv
+import re
+import logging
+import argparse
+
+REPOS = [
+    "ioos/compliance-checker",
+    "ioos/catalog",
+    "ioos/pyoos",
+    "ioos/wicken",
+    "ioos/petulant-bear",
+    "ioos/metamap",
+    "asascience-open/sci-wms",
+    "asascience-open/ncsos",
+    "asascience-open/paegan",
+    "nctoolbox/nctoolbox",
+]
+
+log = logging.getLogger(__name__)
+
+def initialize_logging(level=logging.DEBUG):
+    global log
+    log.setLevel(level)
+
+    ch = logging.StreamHandler()
+    fh = logging.FileHandler('monthly_report.log')
+    ch.setLevel(level)
+    fh.setLevel(level)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    fh.setFormatter(formatter)
+    log.addHandler(ch)
+    log.addHandler(fh)
+
+
+
+PERSONAL_ACCESS_TOKEN = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+
+class APIError(IOError):
+    '''
+    Exception for API requests that aren't successful
+    '''
+    response = None
+
+    def __init__(self, message, response):
+        self.response = response
+        IOError.__init__(self, message)
+
+def set_tz(dt):
+    '''
+    Sets a timezone to a potentially naive datetime
+    '''
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt
+    return pytz.utc.localize(dt)
+
+def main(start, end):
+    '''
+    Generates statistics on all repositories
+    '''
+    log.info("Initializing report.csv")
+    with open('report.csv', 'w') as csvfile:
+        csvwriter = csv.writer(csvfile, delimiter=',', quotechar="'", quoting=csv.QUOTE_MINIMAL)
+
+        csvwriter.writerow([
+            'repo',
+            'issues created',
+            'issues closed',
+            'pull requests opened',
+            'pull requests closed',
+            'comments created',
+            'commits',
+            'releases'])
+
+        for repo in REPOS:
+            log.info("Getting report statistics on %s", repo)
+            stats = (
+                repo,
+                count_issues_created(repo, start, end),
+                count_issues_closed(repo, start, end),
+                count_pull_requests_opened(repo, start, end),
+                count_pull_requests_closed(repo, start, end),
+                count_comments_created(repo, start, end),
+                count_commits(repo, start, end),
+                count_releases(repo, start, end)
+            )
+            csvwriter.writerow([str(i) for i in stats])
+
+
+def comments(repo, start, end=None):
+    '''
+    Fetches the comments on issues
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    base_url = u'https://api.github.com/repos/'
+    url = base_url + repo + '/issues/comments?since=' + start.isoformat()
+    comments_response = github_api_get(url)
+    return comments_response
+
+def commits(repo, start, end):
+    '''
+    Fetches the commits
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    base_url = u'https://api.github.com/repos/'
+    url = base_url + repo + '/commits?since=' + start.isoformat() + '&until=' + end.isoformat()
+    commits_response = github_api_get(url)
+    return commits_response
+
+
+def issues(repo, start, end=None):
+    '''
+    Fetches the issues
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    base_url = u'https://api.github.com/repos/'
+    url = base_url + repo + '/issues?state=all&since=' + start.isoformat()
+    issues_response = github_api_get(url)
+    return issues_response
+
+def releases(repo, start, end):
+    '''
+    Fetches the releases
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    base_url = u'https://api.github.com/repos/'
+    url = base_url + repo + '/releases?since=' + start.isoformat() + '&until=' + end.isoformat()
+    releases_response = github_api_get(url)
+    return releases_response
+
+def comments_created(repo, start, end=None):
+    '''
+    Generates statistics on comments created
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    comments_response = comments(repo, start, end)
+    def comment_filter(record):
+        dt = dateparse(record['created_at'])
+        if end:
+            return dt > start and dt < end 
+        return dt > start
+    comments_response = filter(comment_filter, comments_response)
+    return comments_response
+
+
+def issues_created(repo, start, end=None):
+    '''
+    Generates statistics on issues created
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    issues_response = issues(repo, start, end)
+    def issue_filter(record):
+        dt = dateparse(record['created_at'])
+        if 'pull_request' in record:
+            return False
+        if end:
+            return dt > start and dt < end 
+        return dt > start
+    issues_response = filter(issue_filter, issues_response)
+    return issues_response
+
+def issues_closed(repo, start, end=None):
+    '''
+    Generates statistics on issues closed
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    issues_response = issues(repo, start, end)
+    def issue_filter(record):
+        if not record['closed_at']:
+            return False
+        dt = dateparse(record['closed_at'])
+        if 'pull_request' in record:
+            return False
+        if end:
+            return dt > start and dt < end 
+        return dt > start
+    issues_response = filter(issue_filter, issues_response)
+    return issues_response
+
+def pull_requests_opened(repo, start, end=None):
+    '''
+    Generates statistics on pull-requests opened
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    issues_response = issues(repo, start, end)
+    def issue_filter(record):
+        dt = dateparse(record['created_at'])
+        if 'pull_request' not in record:
+            return False
+        if end:
+            return dt > start and dt < end 
+        return dt > start
+    issues_response = filter(issue_filter, issues_response)
+    return issues_response
+
+def pull_requests_closed(repo, start, end=None):
+    '''
+    Generates statistics on pull-requests closed
+    '''
+    start = set_tz(start)
+    end   = set_tz(end)
+    issues_response = issues(repo, start, end)
+    def issue_filter(record):
+        if not record['closed_at']:
+            return False
+        dt = dateparse(record['closed_at'])
+        if 'pull_request' not in record:
+            return False
+        if end:
+            return dt > start and dt < end 
+        return dt > start
+    issues_response = filter(issue_filter, issues_response)
+    return issues_response
+
+def count_comments_created(repo, start, end=None):
+    '''
+    Counts the number of comments created between start and end datetimes
+    '''
+    return len(comments_created(repo, start, end))
+
+def count_commits(repo, start, end):
+    '''
+    Counts the number of commits created between start and end datetimes
+    '''
+    return len(commits(repo, start, end))
+
+def count_issues_created(repo, start, end=None):
+    '''
+    Counts the number of issues created between start and end datetimes
+    '''
+    return len(issues_created(repo, start, end))
+
+def count_issues_closed(repo, start, end=None):
+    '''
+    Counts the number of issues closed between start and end datetimes
+    '''
+    return len(issues_closed(repo, start, end))
+
+def count_pull_requests_opened(repo, start, end=None):
+    '''
+    Counts the number of pull-requests opened between start and end datetimes
+    '''
+    return len(pull_requests_opened(repo, start, end))
+
+def count_pull_requests_closed(repo, start, end=None):
+    '''
+    Counts the number of pull-requests closed between start and end datetimes
+    '''
+    return len(pull_requests_closed(repo, start, end))
+
+def count_releases(repo, start, end):
+    '''
+    Counts the number of releases created between start and end datetimes
+    '''
+    return len(releases(repo, start, end))
+
+
+def github_api_get(url):
+    '''
+    Performs a github-api aware GET request
+    '''
+    # Perform the request
+    response = requests.get(url, auth=HTTPBasicAuth(PERSONAL_ACCESS_TOKEN, ''))
+
+    if response.status_code != 200:
+        raise APIError("HTTP Code %s" % response.status_code, response)
+
+    # Wait time to parse out the links
+    links = parse_links(response)
+    issues_dict = response.json()
+    if 'next' in links:
+        next_page = github_api_get(links['next'])
+        if isinstance(issues_dict, list):
+            return issues_dict + next_page
+        else:
+            issues_dict.update(next_page)
+            return issues_dict
+    return issues_dict
+
+def parse_links(response):
+    '''
+    The HTTP response in the github API will use pagification and present the
+    follow-up links in the headers. This function parses those out.
+    '''
+    pages = response.headers.get('link', '')
+    pages = pages.split(',')
+    links = {}
+    for page in pages:
+        regex_links(page, links)
+    return links
+
+def regex_links(link_response, links):
+    '''
+    Parses out the type and URL of the links provided by the github API
+    pagification
+    '''
+    matches = re.search(r' ?<(.*)>; rel="(next|last)"', link_response)
+    if matches:
+        page_name = matches.groups()[1]
+        page_url = matches.groups()[0]
+        links[page_name] = page_url
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Generate IOOS Monthly Report')
+    parser.add_argument('start_date', help='Start Date')
+    parser.add_argument('end_date', help='End Date')
+    args = parser.parse_args()
+
+    date0 = dateparse(args.start_date)
+    date1 = dateparse(args.end_date)
+
+    main(date0, date1)
+
+    
