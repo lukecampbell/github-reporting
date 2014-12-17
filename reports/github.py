@@ -7,47 +7,15 @@ repositories
 '''
 
 from requests.auth import HTTPBasicAuth
+from reports.config import ACCESS_TOKEN, REPOS
 from dateutil.parser import parse as dateparse
 
 import requests
 import pytz
 import csv
 import re
-import logging
 import argparse
 
-REPOS = [
-    "ioos/compliance-checker",
-    "ioos/catalog",
-    "ioos/pyoos",
-    "ioos/wicken",
-    "ioos/petulant-bear",
-    "ioos/metamap",
-    "asascience-open/sci-wms",
-    "asascience-open/ncsos",
-    "asascience-open/paegan",
-    "nctoolbox/nctoolbox",
-]
-
-log = logging.getLogger(__name__)
-
-def initialize_logging(level=logging.DEBUG):
-    global log
-    log.setLevel(level)
-
-    ch = logging.StreamHandler()
-    fh = logging.FileHandler('monthly_report.log')
-    ch.setLevel(level)
-    fh.setLevel(level)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
-    fh.setFormatter(formatter)
-    log.addHandler(ch)
-    log.addHandler(fh)
-
-
-
-PERSONAL_ACCESS_TOKEN = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
 
 class APIError(IOError):
     '''
@@ -69,37 +37,6 @@ def set_tz(dt):
         return dt
     return pytz.utc.localize(dt)
 
-def main(start, end):
-    '''
-    Generates statistics on all repositories
-    '''
-    log.info("Initializing report.csv")
-    with open('report.csv', 'w') as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter=',', quotechar="'", quoting=csv.QUOTE_MINIMAL)
-
-        csvwriter.writerow([
-            'repo',
-            'issues created',
-            'issues closed',
-            'pull requests opened',
-            'pull requests closed',
-            'comments created',
-            'commits',
-            'releases'])
-
-        for repo in REPOS:
-            log.info("Getting report statistics on %s", repo)
-            stats = (
-                repo,
-                count_issues_created(repo, start, end),
-                count_issues_closed(repo, start, end),
-                count_pull_requests_opened(repo, start, end),
-                count_pull_requests_closed(repo, start, end),
-                count_comments_created(repo, start, end),
-                count_commits(repo, start, end),
-                count_releases(repo, start, end)
-            )
-            csvwriter.writerow([str(i) for i in stats])
 
 
 def comments(repo, start, end=None):
@@ -283,7 +220,7 @@ def github_api_get(url):
     Performs a github-api aware GET request
     '''
     # Perform the request
-    response = requests.get(url, auth=HTTPBasicAuth(PERSONAL_ACCESS_TOKEN, ''))
+    response = requests.get(url, auth=HTTPBasicAuth(ACCESS_TOKEN, ''))
 
     if response.status_code != 200:
         raise APIError("HTTP Code %s" % response.status_code, response)
@@ -323,15 +260,5 @@ def regex_links(link_response, links):
         page_url = matches.groups()[0]
         links[page_name] = page_url
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generate IOOS Monthly Report')
-    parser.add_argument('start_date', help='Start Date')
-    parser.add_argument('end_date', help='End Date')
-    args = parser.parse_args()
-
-    date0 = dateparse(args.start_date)
-    date1 = dateparse(args.end_date)
-
-    main(date0, date1)
 
     

@@ -52,3 +52,10 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Potentially confidential information
+reports/config/config.yml
+
+# VIM
+*.swp
+
