@@ -59,3 +59,4 @@ reports/config/config.yml
 # VIM
 *.swp
 
+get_numbers.sh
