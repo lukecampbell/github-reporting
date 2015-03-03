@@ -1,4 +1,4 @@
-from reports.monthly_report import issues
+from reports.github import issues
 from reports.unicode_csv import UnicodeWriter
 from reports import log
 

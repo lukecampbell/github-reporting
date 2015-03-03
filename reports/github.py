@@ -15,7 +15,9 @@ import pytz
 import csv
 import re
 import argparse
+import logging
 
+logger = logging.getLogger(__name__)
 
 class APIError(IOError):
     '''
@@ -82,7 +84,13 @@ def releases(repo, start, end):
     base_url = u'https://api.github.com/repos/'
     url = base_url + repo + '/releases?since=' + start.isoformat() + '&until=' + end.isoformat()
     releases_response = github_api_get(url)
-    return releases_response
+    retval = []
+    for release_doc in releases_response:
+        doc_start = dateparse(release_doc['created_at'])
+        if start <= doc_start and doc_start <= end:
+            retval.append(release_doc)
+
+    return retval
 
 def comments_created(repo, start, end=None):
     '''
@@ -223,7 +231,8 @@ def github_api_get(url):
     response = requests.get(url, auth=HTTPBasicAuth(ACCESS_TOKEN, ''))
 
     if response.status_code != 200:
-        raise APIError("HTTP Code %s" % response.status_code, response)
+        logger.error("HTTP %s: %s", response.status_code, response.text)
+        raise APIError("(%s) HTTP Code %s" % (url,response.status_code), response)
 
     # Wait time to parse out the links
     links = parse_links(response)
