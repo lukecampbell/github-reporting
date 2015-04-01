@@ -223,7 +223,7 @@ def count_releases(repo, start, end):
     return len(releases(repo, start, end))
 
 
-def github_api_get(url):
+def github_api_get(url, follow_next=True):
     '''
     Performs a github-api aware GET request
     '''
@@ -237,7 +237,7 @@ def github_api_get(url):
     # Wait time to parse out the links
     links = parse_links(response)
     issues_dict = response.json()
-    if 'next' in links:
+    if follow_next and 'next' in links:
         next_page = github_api_get(links['next'])
         if isinstance(issues_dict, list):
             return issues_dict + next_page

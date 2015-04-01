@@ -1,3 +1,10 @@
+#!/usr/bin/env python
+'''
+reports
+'''
+
+__version__ = '0.0.1'
+
 import logging
 log = logging.getLogger(__name__)
 
