@@ -237,7 +237,7 @@ def github_api_get(url, follow_next=True):
     # Wait time to parse out the links
     links = parse_links(response)
     issues_dict = response.json()
-    if follow_next and 'next' in links:
+    if issues_dict and follow_next and 'next' in links:
         next_page = github_api_get(links['next'])
         if isinstance(issues_dict, list):
             return issues_dict + next_page
