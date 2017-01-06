@@ -7,15 +7,16 @@ repositories
 '''
 
 from requests.auth import HTTPBasicAuth
-from reports.config import ACCESS_TOKEN, REPOS
+from reports import config
 from dateutil.parser import parse as dateparse
-
+import os
 import requests
 import pytz
-import csv
 import re
-import argparse
 import logging
+
+ACCESS_TOKEN = os.environ.get('ACCESS_TOKEN', None) or config.get('ACCESS_TOKEN')
+
 
 logger = logging.getLogger(__name__)
 
