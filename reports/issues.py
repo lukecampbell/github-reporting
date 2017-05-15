@@ -1,11 +1,15 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+'''
+reports/issues.py
+'''
 from reports.github import issues
 from reports.unicode_csv import UnicodeWriter
 from reports import log
-
-from datetime import datetime
 from dateutil.parser import parse as dateparse
 
 import argparse
+
 
 def main(args):
     '''
@@ -22,7 +26,8 @@ def main(args):
         writer.writerow(('Issue Number', 'Title', 'Status', 'Closed At'))
         writer.writerows(rows)
     log.info('Done')
-    
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=main.__doc__)
     parser.add_argument('repository', help='The github Repository in the form of owner/repo')

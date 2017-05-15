@@ -1,4 +1,9 @@
-from reports import log 
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+'''
+reports/monthly.py
+'''
+from reports import log
 from dateutil.parser import parse as dateparse
 from reports.config import REPOS
 
@@ -54,7 +59,5 @@ if __name__ == '__main__':
     parser.add_argument('start_date', help='Start Date')
     parser.add_argument('end_date', help='End Date')
     args = parser.parse_args()
-
-
     main(args)
 
