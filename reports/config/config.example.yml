@@ -2,12 +2,16 @@ ACCESS_TOKEN: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 REPOS:
   - ioos/compliance-checker
   - ioos/catalog
-  - ioos/pyoos
-  - ioos/wicken
-  - ioos/petulant-bear
-  - ioos/metamap
-  - asascience-open/sci-wms
+  - sci-wms/sci-wms
   - asascience-open/ncsos
-  - asascience-open/paegan
   - nctoolbox/nctoolbox
-
+  - ioos/ckanext-ioos-theme
+  - ioos/compliance-checker-web
+  - ioos/glider-dac
+  - ioos/cc-plugin-glider
+  - ioos/cc-plugin-ncei
+  - ioos/gliders
+  - ioos/ioos-us
+  - ioos/catalog-harvesting
+  - ioos/catalog-harvest-registry
+  - ioos/pyoos
